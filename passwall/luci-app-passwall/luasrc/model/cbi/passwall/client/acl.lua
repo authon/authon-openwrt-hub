@@ -12,6 +12,11 @@ s.template = "cbi/tblsection"
 s.sortable = true
 s.anonymous = true
 s.addremove = true
+s.extedit = api.url("acl_config", "%s")
+function s.create(e, t)
+    t = TypedSection.create(e, t)
+    luci.http.redirect(e.extedit:format(t))
+end
 
 ---- Enable
 o = s:option(Flag, "enabled", translate("Enable"))
@@ -22,31 +27,30 @@ o.rmempty = false
 o = s:option(Value, "remarks", translate("Remarks"))
 o.rmempty = true
 
-o = s:option(Value, "ip_mac", translate("IP/MAC"))
-o.datatype = "or(ip4addr,macaddr)"
-o.rmempty = false
-
 local mac_t = {}
 sys.net.mac_hints(function(e, t)
-    mac_t[#mac_t + 1] = {
+    mac_t[e] = {
         ip = t,
         mac = e
     }
 end)
-table.sort(mac_t, function(a,b)
-    if #a.ip < #b.ip then
-        return true
-    elseif #a.ip == #b.ip then
-        if a.ip < b.ip then
-            return true
-        else
-            return #a.ip < #b.ip
+
+o = s:option(DummyValue, "ip_mac", translate("IP/MAC"))
+o.rawhtml = true
+o.cfgvalue = function(t, n)
+    local e = ''
+    local v = Value.cfgvalue(t, n) or ''
+    string.gsub(v, '[^' .. " " .. ']+', function(w)
+        local a = w
+        if mac_t[w] then
+            a = a .. ' (' .. mac_t[w].ip .. ')'
         end
-    end
-    return false
-end)
-for _, key in pairs(mac_t) do
-    o:value(key.mac, "%s (%s)" % {key.mac, key.ip})
+        if #e > 0 then
+            e = e .. "<br />"
+        end
+        e = e .. a
+    end)
+    return e
 end
 
 ---- TCP Proxy Mode
@@ -62,6 +66,7 @@ else
     tcp_proxy_mode:value("gfwlist", translate("GFW List"))
     tcp_proxy_mode:value("chnroute", translate("Not China List"))
 end
+tcp_proxy_mode:value("direct/proxy", translate("Only use direct/proxy list"))
 
 ---- UDP Proxy Mode
 udp_proxy_mode = s:option(ListValue, "udp_proxy_mode", translatef("%s Proxy Mode", "UDP"))
@@ -74,9 +79,11 @@ if global_proxy_mode:find("returnhome") then
     udp_proxy_mode:value("returnhome", translate("China List"))
 else
     udp_proxy_mode:value("gfwlist", translate("GFW List"))
-    udp_proxy_mode:value("chnroute", translate("Game Mode"))
+    udp_proxy_mode:value("chnroute", translate("Not China List"))
 end
+udp_proxy_mode:value("direct/proxy", translate("Only use direct/proxy list"))
 
+--[[
 ---- TCP No Redir Ports
 o = s:option(Value, "tcp_no_redir_ports", translate("TCP No Redir Ports"))
 o.default = "default"
@@ -106,5 +113,6 @@ o.default = "default"
 o:value("default", translate("Default"))
 o:value("1:65535", translate("All"))
 o:value("53", "53")
+]]--
 
 return m
