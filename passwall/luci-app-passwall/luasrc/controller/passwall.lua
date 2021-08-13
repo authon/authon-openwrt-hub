@@ -10,6 +10,7 @@ local util = require "luci.util"
 local i18n = require "luci.i18n"
 local kcptun = require("luci.model.cbi." .. appname ..".api.kcptun")
 local brook = require("luci.model.cbi." .. appname ..".api.brook")
+local v2ray = require("luci.model.cbi." .. appname ..".api.v2ray")
 local xray = require("luci.model.cbi." .. appname ..".api.xray")
 local trojan_go = require("luci.model.cbi." .. appname ..".api.trojan_go")
 
@@ -73,6 +74,8 @@ function index()
 	entry({"admin", "services", appname, "kcptun_update"}, call("kcptun_update")).leaf = true
 	entry({"admin", "services", appname, "brook_check"}, call("brook_check")).leaf = true
 	entry({"admin", "services", appname, "brook_update"}, call("brook_update")).leaf = true
+	entry({"admin", "services", appname, "v2ray_check"}, call("v2ray_check")).leaf = true
+	entry({"admin", "services", appname, "v2ray_update"}, call("v2ray_update")).leaf = true
 	entry({"admin", "services", appname, "xray_check"}, call("xray_check")).leaf = true
 	entry({"admin", "services", appname, "xray_update"}, call("xray_update")).leaf = true
 	entry({"admin", "services", appname, "trojan_go_check"}, call("trojan_go_check")).leaf = true
@@ -85,7 +88,8 @@ local function http_write_json(content)
 end
 
 function reset_config()
-	luci.sys.call('[ -f "/rom/etc/config/passwall" ] && cp -f /rom/etc/config/passwall /etc/config/passwall && /etc/init.d/passwall reload')
+	luci.sys.call('/etc/init.d/passwall stop')
+	luci.sys.call('[ -f "/usr/share/passwall/0_default_config" ] && cp -f /usr/share/passwall/0_default_config /etc/config/passwall')
 	luci.http.redirect(api.url())
 end
 
@@ -283,8 +287,8 @@ function clear_all_nodes()
 		ucic:delete(appname, t[".name"])
 	end)
 	ucic:foreach(appname, "acl_rule", function(t)
-		ucic:set(appname, t[".name"], "tcp_node", "nil")
-		ucic:set(appname, t[".name"], "udp_node", "nil")
+		ucic:set(appname, t[".name"], "tcp_node", "default")
+		ucic:set(appname, t[".name"], "udp_node", "default")
 	end)
 	ucic:foreach(appname, "nodes", function(node)
 		ucic:delete(appname, node['.name'])
@@ -303,10 +307,10 @@ function delete_select_nodes()
 				luci.sys.call(string.format("uci -q del_list passwall.@auto_switch[0].tcp_node='%s'", w))
 			end
 		end
-		if ucic:get(appname, "@global[0]", "tcp_node") or "nil" == w then
+		if (ucic:get(appname, "@global[0]", "tcp_node") or "nil") == w then
 			ucic:set(appname, '@global[0]', "tcp_node", "nil")
 		end
-		if ucic:get(appname, "@global[0]", "udp_node") or "nil" == w then
+		if (ucic:get(appname, "@global[0]", "udp_node") or "nil") == w then
 			ucic:set(appname, '@global[0]', "udp_node", "nil")
 		end
 		ucic:foreach(appname, "socks", function(t)
@@ -321,10 +325,10 @@ function delete_select_nodes()
 		end)
 		ucic:foreach(appname, "acl_rule", function(t)
 			if t["tcp_node"] == w then
-				ucic:set(appname, t[".name"], "tcp_node", "nil")
+				ucic:set(appname, t[".name"], "tcp_node", "default")
 			end
 			if t["udp_node"] == w then
-				ucic:set(appname, t[".name"], "udp_node", "nil")
+				ucic:set(appname, t[".name"], "udp_node", "default")
 			end
 		end)
 		ucic:delete(appname, w)
@@ -428,6 +432,25 @@ function brook_update()
 		json = brook.to_move(http.formvalue("file"))
 	else
 		json = brook.to_download(http.formvalue("url"))
+	end
+
+	http_write_json(json)
+end
+
+function v2ray_check()
+	local json = v2ray.to_check("")
+	http_write_json(json)
+end
+
+function v2ray_update()
+	local json = nil
+	local task = http.formvalue("task")
+	if task == "extract" then
+		json = v2ray.to_extract(http.formvalue("file"), http.formvalue("subfix"))
+	elseif task == "move" then
+		json = v2ray.to_move(http.formvalue("file"))
+	else
+		json = v2ray.to_download(http.formvalue("url"))
 	end
 
 	http_write_json(json)
