@@ -193,7 +193,7 @@ config_su_check()
       else
          LOG_OUT "Config File【$name】No Change, Do Nothing!"
          rm -rf "$CFG_FILE"
-         sleep 5
+         sleep 3
          SLOG_CLEAN
       fi
    else
@@ -214,7 +214,7 @@ config_error()
 {
    LOG_OUT "Error:【$name】Update Error, Please Try Again Later..."
    rm -rf "$CFG_FILE" 2>/dev/null
-   sleep 5
+   sleep 3
    SLOG_CLEAN
 }
 
@@ -232,9 +232,11 @@ change_dns()
          uci commit dhcp
          /etc/init.d/dnsmasq restart >/dev/null 2>&1
       fi
+      iptables -t nat -D OUTPUT -j openclash_output >/dev/null 2>&1
+      iptables -t mangle -D OUTPUT -j openclash_output >/dev/null 2>&1
       iptables -t nat -I OUTPUT -j openclash_output >/dev/null 2>&1
       iptables -t mangle -I OUTPUT -j openclash_output >/dev/null 2>&1
-      nohup /usr/share/openclash/openclash_watchdog.sh &
+      [ "$(unify_ps_status "openclash_watchdog.sh")" -eq 0 ] && [ "$(unify_ps_prevent)" -eq 0 ] && nohup /usr/share/openclash/openclash_watchdog.sh &
    fi
 }
 
