@@ -231,7 +231,7 @@ proto_pppoe_setup() {
 	json_get_var padi_attempts padi_attempts
 	json_get_var padi_timeout padi_timeout
 
-#By 蝈蝈：并发拨号同步的前期准备
+	#By 蝈蝈：并发拨号同步的前期准备
 	syncppp_option=""
 	[ "$(uci get syncdial.config.enabled)" == "1" ] && {
 		ppp_if_cnt=$(cat /etc/config/network | grep -c "proto 'pppoe'")
