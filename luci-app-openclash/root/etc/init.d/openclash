@@ -22,7 +22,6 @@ RULE_PROVIDER_FILE="/tmp/yaml_rule_provider.yaml"
 DNS_FILE="/tmp/yaml_dns.yaml"
 GAME_RULE_FILE="/tmp/yaml_game_rule.yaml"
 FALLBACK_FILTER_FILE="/etc/openclash/custom/openclash_custom_fallback_filter.yaml"
-NETFLIX_FULL_IP_FILE="/etc/openclash/rule_provider/Netflix_ip_full.yaml"
 LOCK_FILE=/tmp/lock/openclash.lock
 PROXY_FWMARK="0x162"
 PROXY_ROUTE_TABLE="0x162"
@@ -158,11 +157,13 @@ yml_dns_check()
       cat >> "$DNS_FILE" <<-EOF
     - 114.114.114.114
     - 119.29.29.29
+    - 223.5.5.5
   fallback:
-    - https://cloudflare-dns.com/dns-query
-    - https://doh.pub/dns-query
-    - https://dns.alidns.com/dns-query
-    - https://dns.rubyfish.cn/dns-query
+    - https://dns.cloudflare.com/dns-query
+    - https://public.dns.iij.jp/dns-query
+    - https://jp.tiar.app/dns-query
+    - https://jp.tiarap.org/dns-query
+    - tls://dot.tiar.app
 EOF
       if [ -z "$(ruby_read "$1" "['dns']")" ]; then
          ruby_cover "$1" "['dns']" "$DNS_FILE"
@@ -295,7 +296,7 @@ if [ -z "$(pidof clash)" ] && [ -n "$provider_path_check" ]; then
    else
       LOG_OUT "Error: Failed To Download Rule-providers, Please Check The Log Page For Detailed error information!"
    fi
-   sleep 3
+   LOG_ALERT
    start_fail
 elif [ "$provider_path_check_num" -gt 5 ]; then
    LOG_OUT "Warning: Providers File Check Timeout, If Failed To start, Please Check The Log Page For Detailed error information!"
@@ -489,50 +490,6 @@ ruby -ryaml -E UTF-8 -e "
 	end
 " 2>/dev/null >> $LOG_FILE
 fi
-}
-
-yml_netflix_complete()
-{
-	 
-   [ "$netflix_ip_complete" != "1" ] && return
-	
-   [ ! -f "$NETFLIX_FULL_IP_FILE" ] && /usr/share/openclash/openclash_download_rule_list.sh "netflix_ip"
-   
-   [ ! -f "$NETFLIX_FULL_IP_FILE" ] && return
-   
-   ruby -ryaml -E UTF-8 -e "
-   begin
-      Value = YAML.load_file('${1}');
-      reg = /(${netflix_group_key})/i;
-      Value['proxy-groups'].each{
-  		|x|
-			if x['name'] =~ reg then
-			  Group=x['name']
-				break
-			end
-		  };
-		  if defined? Group then
-         if Value.has_key?('rules') and not Value['rules'].to_a.empty? then
-            ruby_add_index = Value['rules'].index(Value['rules'].grep(/(GEOIP|MATCH|FINAL)/).first)
-            ruby_add_index ||= -1
-            Value['rules'].insert(ruby_add_index,'RULE-SET,Netflix Full IP,' + Group)
-            Value['rules']=Value['rules'].uniq
-         else
-            Value={'rules'=>['RULE-SET,Netflix Full IP,' + Group]}
-         end;
-         Value_1={'rule-providers'=>{'Netflix Full IP'=>{'type'=>'file', 'behavior'=>'ipcidr', 'path'=>'./rule_provider/Netflix_ip_full.yaml'}}};
-         if Value.has_key?('rule-providers') and not Value['rule-providers'].to_a.empty? then
-            Value['rule-providers'].merge!(Value_1['rule-providers'])
-            Value['rule-providers'].uniq
-         else
-            Value['rule-providers']=Value_1['rule-providers']
-         end;
-         File.open('${1}','w') {|f| YAML.dump(Value, f)};
-      end;
-   rescue Exception => e
-      puts '${LOGTIME} Error: Netflix IP Rules Complete Error,【' + e.message + '】'
-   end
-   " 2>/dev/null >> $LOG_FILE
 }
 
 get_rule_file()
@@ -1014,7 +971,7 @@ yml_other_rules_get()
 check_run_quick()
 {
    quick_start=true
-   check_file="$RAW_CONFIG_FILE /etc/openclash/custom/openclash_custom_domain_dns.list /etc/openclash/custom/openclash_custom_domain_dns_policy.list /etc/openclash/custom/openclash_custom_fake_filter.list /etc/openclash/custom/openclash_custom_fallback_filter.yaml /etc/openclash/custom/openclash_custom_hosts.list /etc/openclash/custom/openclash_custom_rules.list /etc/openclash/custom/openclash_custom_rules_2.list $dev_core_path $tun_core_path $game_core_path $geoip_path $chnr_path $chnr6_path /usr/share/openclash/res/ConnersHua.yaml /usr/share/openclash/res/ConnersHua_return.yaml /usr/share/openclash/res/lhie1.yaml /usr/share/openclash/res/openclash_version"
+   check_file="$RAW_CONFIG_FILE /etc/openclash/custom/openclash_custom_domain_dns.list /etc/openclash/custom/openclash_custom_domain_dns_policy.list /etc/openclash/custom/openclash_custom_fake_filter.list /etc/openclash/custom/openclash_custom_fallback_filter.yaml /etc/openclash/custom/openclash_custom_hosts.list /etc/openclash/custom/openclash_custom_rules.list /etc/openclash/custom/openclash_custom_rules_2.list $dev_core_path $tun_core_path $geoip_path $chnr_path $chnr6_path /usr/share/openclash/res/ConnersHua.yaml /usr/share/openclash/res/ConnersHua_return.yaml /usr/share/openclash/res/lhie1.yaml /usr/share/openclash/res/openclash_version /tmp/openclash_fake_filter.list"
 	 if [ ! -f "$CONFIG_FILE" ] || [ ! -f "/tmp/openclash_config.tmp" ] || [ ! -f "/tmp/openclash.change" ]; then
 	    quick_start=false
 	    return
@@ -1026,12 +983,12 @@ check_run_quick()
 	 else
 	    if [ -s "/tmp/openclash.change" ]; then
          for i in $check_file; do
-            if [ -z "$(grep "$i $(date -r $i)" "/tmp/openclash.change")" ]; then
+            if [ -z "$(grep "$i $(date -r $i)$" "/tmp/openclash.change")" ]; then
             	LOG_OUT "Tip: Because of the file【 $i 】modificated, Pause quick start..."
             	quick_start=false
             	break
             fi
-         done
+         done 2>/dev/null
       fi
 	 fi
 }
@@ -1043,8 +1000,24 @@ write_run_quick()
 	    : > "/tmp/openclash.change"
 	    for i in $check_file; do
          echo "$i $(date -r $i)" >> "/tmp/openclash.change"
-      done
+      done 2>/dev/null
 	 fi
+}
+
+custom_rule_provider()
+{
+   local section="$1"
+   local enabled config
+   config_get "config" "$section" "config" ""
+   config_get_bool "enabled" "$section" "enabled" "1"
+
+   if [ "$enabled" = "0" ]; then
+      return
+   fi
+   
+   if [ "$config" = "all" ] || [ "$config" = "$CONFIG_NAME" ]; then
+      config_set_custom_rule_provider=1
+   fi
 }
 
 #运行模式处理
@@ -1063,22 +1036,12 @@ do_run_mode()
    fi
     
    if [ "$en_mode" = "redir-host-mix" ]; then
-      en_mode_tun="3"
-      en_mode="redir-host"
-   fi
-    
-   if [ "$en_mode" = "redir-host-vpn" ]; then
       en_mode_tun="2"
       en_mode="redir-host"
-   fi
-    
-   if [ "$en_mode" = "fake-ip-vpn" ]; then
-      en_mode_tun="2"
-      en_mode="fake-ip"
    fi
     
    if [ "$en_mode" = "fake-ip-mix" ]; then
-      en_mode_tun="3"
+      en_mode_tun="2"
       en_mode="fake-ip"
    fi
 }
@@ -1089,7 +1052,6 @@ do_run_file()
    if [ "$small_flash_memory" != "1" ]; then
       dev_core_path="/etc/openclash/core/clash"
       tun_core_path="/etc/openclash/core/clash_tun"
-      game_core_path="/etc/openclash/core/clash_game"
       geoip_path="/etc/openclash/Country.mmdb"
       chnr_path="/etc/openclash/china_ip_route.ipset"
       chnr6_path="/etc/openclash/china_ip6_route.ipset"
@@ -1097,7 +1059,6 @@ do_run_file()
    else
       dev_core_path="/tmp/etc/openclash/core/clash"
       tun_core_path="/tmp/etc/openclash/core/clash_tun"
-      game_core_path="/tmp/etc/openclash/core/clash_game"
       geoip_path="/tmp/etc/openclash/Country.mmdb"
       chnr_path="/tmp/etc/openclash/china_ip_route.ipset"
       chnr6_path="/tmp/etc/openclash/china_ip6_route.ipset"
@@ -1109,25 +1070,28 @@ do_run_file()
     
    rm -rf "/etc/openclash/clash" 2>/dev/null
     
-   if [ "$en_mode_tun" = "1" ] || [ "$en_mode_tun" = "3" ]; then
+   if [ -n "$en_mode_tun" ]; then
       ln -s "$tun_core_path" /etc/openclash/clash 2>/dev/null
       core_type="TUN"
       core_start_log="Tip: Detected The Exclusive Function of The TUN Core, Use TUN Core to Start..."
-   fi
-    
-   if [ "$en_mode_tun" = "2" ]; then
-      ln -s "$game_core_path" /etc/openclash/clash 2>/dev/null
-      core_type="Game"
-      core_start_log="Tip: Detected The Exclusive Function of The Game Core, Use Game Core to Start..."
    fi
    
    if [ "$rule_source" != "0" ]; then
       config_load "openclash"
       config_foreach yml_other_rules_get "other_rules" "$CONFIG_NAME"
    fi
+   
+   config_load "openclash"
+   config_set_custom_rule_provider=0
+   for i in "rule_provider_config" "rule_provider_config" "rule_providers" "game_config"; do
+      config_foreach custom_rule_provider "$i"
+      if [ "$config_set_custom_rule_provider" -eq 1 ]; then
+      	break
+      fi
+   done 2>/dev/null
 
-   if [ "$proxy_mode" = "script" ] || [ "$rule_name" = "ConnersHua" ] || [ "$rule_name" = "lhie1" ] || [ -n "$(ruby_read "$RAW_CONFIG_FILE" "['rules'].grep(/(^RULE-SET,|^SCRIPT,)/)")" ] || [ -n "$(ruby_read "/etc/openclash/custom/openclash_custom_rules.list" "['rules'].grep(/(^RULE-SET,|^SCRIPT,)/)")" ] || [ -n "$(ruby_read "/etc/openclash/custom/openclash_custom_rules_2.list" "['rules'].grep(/(^RULE-SET,|^SCRIPT,)/)")" ]; then
-      if [ "$en_mode_tun" != "2" ]; then
+   if [ "$proxy_mode" = "script" ] || [ "$config_set_custom_rule_provider" -eq 1 ] || [ "$rule_name" = "ConnersHua" ] || [ "$rule_name" = "lhie1" ] || [ -n "$(ruby_read "$RAW_CONFIG_FILE" "['rules'].grep(/(^RULE-SET,|^SCRIPT,)/)")" ] || [ -n "$(ruby_read "/etc/openclash/custom/openclash_custom_rules.list" "['rules'].grep(/(^RULE-SET,|^SCRIPT,)/)")" ] || [ -n "$(ruby_read "/etc/openclash/custom/openclash_custom_rules_2.list" "['rules'].grep(/(^RULE-SET,|^SCRIPT,)/)")" ]; then
+      if [ -z "$en_mode_tun" ]; then
          rm -rf "/etc/openclash/clash"
          ln -s "$tun_core_path" /etc/openclash/clash 2>/dev/null
          core_type="TUN"
@@ -1140,24 +1104,28 @@ do_run_file()
       core_start_log="Tip: No Special Configuration Detected, Use Dev Core to Start..."
    fi
     
-   if [ ! -f "/etc/openclash/clash" ] && [ -f "$tun_core_path" ] && [ "$core_type" != "Game" ]; then
+   if [ ! -f "/etc/openclash/clash" ] && [ -f "$tun_core_path" ]; then
       ln -s "$tun_core_path" /etc/openclash/clash 2>/dev/null
       core_type="TUN"
       core_start_log="Tip: Detected that the Dev Core is not Installed, Use TUN Core to Start..."
    fi
-    
-   if [ ! -f "/etc/openclash/clash" ] && [ -f "$game_core_path" ] && [ "$core_type" != "TUN" ]; then
-      ln -s "$game_core_path" /etc/openclash/clash 2>/dev/null
-      core_type="Game"
-      core_start_log="Tip: Detected that the Dev Core is not Installed, Use Game Core to Start..."
-   fi
 
 #权限检查
    [ ! -x "$tun_core_path" ] && chmod 4755 "$tun_core_path" 2>/dev/null
-   [ ! -x "$game_core_path" ] && chmod 4755 "$game_core_path" 2>/dev/null
    [ ! -x "$dev_core_path" ] && chmod 4755 "$dev_core_path" 2>/dev/null
 
 #文件检查
+   #fake_ip_filter
+   if [ "$3" = "fake-ip" ]; then
+      if [ ! -f "/tmp/openclash_fake_filter.list" ] || [ -n "$(grep "config servers" /etc/config/openclash 2>/dev/null)" ]; then
+         /usr/share/openclash/openclash_fake_filter.sh
+      fi
+      if [ -s "/tmp/openclash_servers_fake_filter.conf" ]; then
+         mkdir -p /tmp/dnsmasq.d
+         cp /tmp/openclash_servers_fake_filter.conf /tmp/dnsmasq.d/dnsmasq_openclash.conf
+      fi
+   fi
+  
    [ -f "$geoip_path" ] && [ "$small_flash_memory" = "1" ] && {
       ln -s "$geoip_path" /etc/openclash/Country.mmdb 2>/dev/null
    }
@@ -1238,16 +1206,30 @@ start_run_core()
    check_interface_name
    config_reload=$(uci -q get openclash.config.config_reload)
    #Resore history cache
-   if [ -f "$HISTORY_PATH" ]; then
-      cmp -s "$CACHE_PATH" "$HISTORY_PATH"
-      if [ "$?" -ne "0" ]; then
-         cp "$HISTORY_PATH" "$CACHE_PATH" 2>/dev/null
+   if [ -f "$HISTORY_PATH" ] && [ -f "$HISTORY_PATH_OLD" ]; then
+      if [ "$(date -r $HISTORY_PATH +%s)" -ge "$(date -r $HISTORY_PATH_OLD +%s)" ]; then
+         cmp -s "$CACHE_PATH" "$HISTORY_PATH"
+         if [ "$?" -ne "0" ]; then
+            cp "$HISTORY_PATH" "$CACHE_PATH" 2>/dev/null
+         fi
+      else
+         cmp -s "$CACHE_PATH_OLD" "$HISTORY_PATH_OLD"
+         if [ "$?" -ne "0" ]; then
+            cp "$HISTORY_PATH_OLD" "$CACHE_PATH_OLD" 2>/dev/null
+         fi
       fi
-   fi
-   if [ -f "$HISTORY_PATH_OLD" ]; then
-      cmp -s "$CACHE_PATH_OLD" "$HISTORY_PATH_OLD"
-      if [ "$?" -ne "0" ]; then
-         cp "$HISTORY_PATH_OLD" "$CACHE_PATH_OLD" 2>/dev/null
+   else
+      if [ -f "$HISTORY_PATH" ]; then
+         cmp -s "$CACHE_PATH" "$HISTORY_PATH"
+         if [ "$?" -ne "0" ]; then
+            cp "$HISTORY_PATH" "$CACHE_PATH" 2>/dev/null
+         fi
+      fi
+      if [ -f "$HISTORY_PATH_OLD" ]; then
+         cmp -s "$CACHE_PATH_OLD" "$HISTORY_PATH_OLD"
+         if [ "$?" -ne "0" ]; then
+            cp "$HISTORY_PATH_OLD" "$CACHE_PATH_OLD" 2>/dev/null
+         fi
       fi
    fi
    if [ -n "$(pidof clash)" ] && [ "$core_type" != "TUN" ] && [ "$config_reload" != "0" ]; then
@@ -1280,6 +1262,9 @@ check_core_status()
       sleep 1
       let check_time++
    done
+   if [ -z "$(pidof clash)" ]; then
+      LOG_ALERT
+   fi
 }
 
 #不修改配置文件启动
@@ -1293,15 +1278,15 @@ raw_config_start()
    if [ -z "$dns_port" ] || [ -z "$en_mode" ] || [ -z "$proxy_port" ]; then
       if [ -z "$dns_port" ]; then
          LOG_OUT "Error: Get DNS 'listen' Option Error, OpenClash Can Not Start With Raw Config File"
-         sleep 3
+         sleep 2
       fi
       if [ -z "$en_mode" ]; then
          LOG_OUT "Error: Get DNS 'enhanced-mode' Option Error, OpenClash Can Not Start With Raw Config File"
-         sleep 3
+         sleep 2
       fi
       if [ -z "$proxy_port" ]; then
          LOG_OUT "Error: Get General 'redir-port' Option Error, OpenClash Can Not Start With Raw Config File"
-         sleep 3
+         sleep 2
       fi
       start_fail
    fi
@@ -1321,9 +1306,6 @@ raw_config_start()
          uci -q set openclash.config.en_mode=redir-host-tun
       ;;
       "2")
-         uci -q set openclash.config.en_mode=redir-host-vpn
-      ;;
-      "3")
          uci -q set openclash.config.en_mode=redir-host-mix
       ;;
       *)
@@ -1335,9 +1317,6 @@ raw_config_start()
          uci -q set openclash.config.en_mode=fake-ip-tun
       ;;
       "2")
-         uci -q set openclash.config.en_mode=fake-ip-vpn
-      ;;
-      "3")
          uci -q set openclash.config.en_mode=fake-ip-mix
       ;;
       *)
@@ -1439,7 +1418,7 @@ firewall_rule_exclude()
    dest_ip=$(echo $dest_ip |sed "s/ /,/g" 2>/dev/null)
    
    if [ -z "$family" ] || [ "$family" == "ipv4" ]; then
-      if [ -z "$en_mode_tun" ] || [ "$en_mode_tun" -eq 3 ]; then
+      if [ -z "$en_mode_tun" ] || [ "$en_mode_tun" -eq 2 ]; then
          for i in $dest_port; do
             if $e_tcp ; then
                iptables -t nat -I openclash_output -p tcp --sport "$i" -j RETURN >/dev/null 2>&1
@@ -1458,7 +1437,7 @@ firewall_rule_exclude()
                fi
             fi
          done
-      elif [ "$en_mode_tun" -ne 3 ]; then
+      elif [ "$en_mode_tun" -eq 1 ]; then
          for i in $dest_port; do
             if $e_tcp ; then
                iptables -t mangle -I openclash_output -p tcp --sport "$i" -j RETURN >/dev/null 2>&1
@@ -1528,11 +1507,11 @@ firewall_redirect_exclude()
        return
    fi
 
-   if [ -z "$en_mode_tun" ] || [ "$en_mode_tun" -eq 3 ]; then
+   if [ -z "$en_mode_tun" ] || [ "$en_mode_tun" -eq 2 ]; then
    	  iptables -t nat -I openclash_output -p tcp --sport "$src_dport" -j RETURN >/dev/null 2>&1
    	  iptables -t mangle -I openclash_output -p udp --sport "$src_dport" -j RETURN >/dev/null 2>&1
       iptables -t mangle -I openclash -p udp --dport "$src_dport" -j RETURN >/dev/null 2>&1
-   elif [ "$en_mode_tun" -ne 3 ]; then
+   elif [ "$en_mode_tun" -eq 1 ]; then
    	  iptables -t mangle -I openclash_output -p tcp --sport "$src_dport" -j RETURN >/dev/null 2>&1
    	  iptables -t mangle -I openclash_output -p udp --sport "$src_dport" -j RETURN >/dev/null 2>&1
       iptables -t mangle -I openclash -p tcp --dport "$src_dport" -j RETURN >/dev/null 2>&1
@@ -1666,7 +1645,7 @@ if [ "$common_ports" = "1" ]; then
    done
 fi
 
-if [ -z "$en_mode_tun" ] || [ "$en_mode_tun" -eq 3 ]; then
+if [ -z "$en_mode_tun" ] || [ "$en_mode_tun" -eq 2 ]; then
    #tcp
    iptables -t nat -N openclash
    iptables -t nat -F openclash
@@ -1710,10 +1689,25 @@ if [ -z "$en_mode_tun" ] || [ "$en_mode_tun" -eq 3 ]; then
          iptables -t mangle -A openclash -p udp --dport 53 -j RETURN >/dev/null 2>&1
          iptables -t mangle -A openclash -p udp -j TPROXY --on-port "$proxy_port" --tproxy-mark "$PROXY_FWMARK"
          iptables -t mangle -A PREROUTING -p udp -j openclash
-      fi
-      #quic
-      if [ "$disable_udp_quic" -eq 1 ]; then
-	       iptables -I INPUT -p udp --dport 443 -m comment --comment "OpenClash QUIC REJECT" -m set ! --match-set china_ip_route dst -j REJECT >/dev/null 2>&1
+         
+         #quic
+         if [ "$disable_udp_quic" -eq 1 ]; then
+	          iptables -I INPUT -p udp --dport 443 -m comment --comment "OpenClash QUIC REJECT" -m set ! --match-set china_ip_route dst -j REJECT >/dev/null 2>&1
+         fi
+         
+      elif [ "$en_mode" = "fake-ip" ]; then
+         modprobe xt_TPROXY >/dev/null 2>&1
+         ip rule add fwmark "$PROXY_FWMARK" table "$PROXY_ROUTE_TABLE"
+         ip route add local 0.0.0.0/0 dev lo table "$PROXY_ROUTE_TABLE"
+         iptables -t mangle -N openclash
+         iptables -t mangle -F openclash
+         iptables -t mangle -A openclash -p udp -d 198.18.0.0/16 -j TPROXY --on-port "$proxy_port" --tproxy-mark "$PROXY_FWMARK"
+         iptables -t mangle -A PREROUTING -p udp -j openclash
+         
+         #quic
+         if [ "$disable_udp_quic" -eq 1 ]; then
+	          iptables -I INPUT -p udp --dport 443 -m comment --comment "OpenClash QUIC REJECT" -m set ! --match-set china_ip_route dst -j REJECT >/dev/null 2>&1
+         fi
       fi
    fi
    
@@ -1758,19 +1752,14 @@ fi
 if [ -n "$en_mode_tun" ]; then
    #TUN模式
    #启动TUN
-   if [ "$en_mode_tun" -eq 2 ]; then
-      ip tuntap add user root mode tun utun
+   TUN_WAIT=0
+   ip link set utun up
+   while ( [ -n "$(pidof clash)" ] && [ -z "$(ip route list |grep utun)" ] && [ "$TUN_WAIT" -le 3 ] )
+   do
       ip link set utun up
-   elif [ "$en_mode_tun" -eq 1 ] || [ "$en_mode_tun" -eq 3 ]; then
-      TUN_WAIT=0
-      ip link set utun up
-      while ( [ -n "$(pidof clash)" ] && [ -z "$(ip route list |grep utun)" ] && [ "$TUN_WAIT" -le 3 ] )
-      do
-         ip link set utun up
-         let TUN_WAIT++
-         sleep 2
-      done
-   fi
+      let TUN_WAIT++
+      sleep 2
+   done
    ip route replace default dev utun table "$PROXY_ROUTE_TABLE"
    ip rule add fwmark "$PROXY_FWMARK" table "$PROXY_ROUTE_TABLE"
    
@@ -1779,7 +1768,7 @@ if [ -n "$en_mode_tun" ]; then
       iptables -t mangle -N openclash_output
       iptables -t mangle -F openclash_output
       iptables -t mangle -A openclash_output -m set --match-set localnetwork dst -j RETURN
-      if [ "$en_mode_tun" -ne 3 ]; then
+      if [ "$en_mode_tun" -eq 1 ]; then
          if [ -z "$_koolshare" ]; then
             iptables -t mangle -A openclash_output -m owner ! --uid-owner 65534 -d 198.18.0.0/16 -j MARK --set-mark "$PROXY_FWMARK"
             iptables -t mangle -A openclash_output -m owner ! --uid-owner 65534 -m set ! --match-set common_ports dst -j RETURN >/dev/null 2>&1
@@ -1791,7 +1780,7 @@ if [ -n "$en_mode_tun" ]; then
          iptables -t mangle -A openclash_output -m owner ! --uid-owner 65534 -p udp -d 198.18.0.0/16 -j MARK --set-mark "$PROXY_FWMARK"
       fi
       iptables -t mangle -I OUTPUT -j openclash_output
-   elif [ -z "$_koolshare" ] && [ "$en_mode" = "redir-host" ] && [ "$en_mode_tun" -ne 3 ]; then
+   elif [ -z "$_koolshare" ] && [ "$en_mode" = "redir-host" ] && [ "$en_mode_tun" -eq 1 ]; then
       iptables -t mangle -N openclash_output
       iptables -t mangle -F openclash_output
       iptables -t mangle -A openclash_output -m set --match-set localnetwork dst -j RETURN
@@ -1823,9 +1812,10 @@ if [ -n "$en_mode_tun" ]; then
    fi
    iptables -t mangle -A openclash -j MARK --set-mark "$PROXY_FWMARK"
    
-   if [ "$en_mode_tun" -ne 3 ]; then
+   if [ "$en_mode_tun" -eq 1 ]; then
       iptables -t mangle -I PREROUTING -j openclash
-      iptables -t nat -I PREROUTING -m comment --comment "OpenClash TCP DNS Hijack" -p tcp --dport 53 -j ACCEPT
+      iptables -t nat -I PREROUTING -m comment --comment "OpenClash Google DNS Hijack" -p tcp -d 8.8.8.8 --dport 53 -j ACCEPT
+      iptables -t nat -I PREROUTING -m comment --comment "OpenClash Google DNS Hijack" -p tcp -d 8.8.4.4 --dport 53 -j ACCEPT
    else
       iptables -t mangle -I PREROUTING -p tcp --dport 53 -j openclash_dns_hijack
       iptables -t mangle -A openclash_dns_hijack -m comment --comment "OpenClash Google DNS Hijack" -d 8.8.8.8 -j MARK --set-mark "$PROXY_FWMARK"
@@ -1836,7 +1826,7 @@ if [ -n "$en_mode_tun" ]; then
    fi
    
    #snat routerself for tun while bindaddress enable
-   if [ "$en_mode_tun" -ne 3 ] && [ "$intranet_allowed" -eq 1 ]; then
+   if [ "$en_mode_tun" -eq 1 ] && [ "$intranet_allowed" -eq 1 ]; then
       if [ -z "$_koolshare" ]; then
          iptables -t nat -N openclash_post
          iptables -t nat -F openclash_post
@@ -1849,14 +1839,17 @@ if [ -n "$en_mode_tun" ]; then
          iptables -t nat -A POSTROUTING -j openclash_post
       fi
    fi
+   
    #TUN FORWORD
    iptables -I FORWARD -m comment --comment "OpenClash TUN Forward" -o utun -j ACCEPT
+   
+   #quic
+   if [ "$disable_udp_quic" -eq 1 ]; then
+      iptables -I FORWARD -p udp --dport 443 -o utun -m comment --comment "OpenClash QUIC REJECT" -m set ! --match-set china_ip_route dst -j REJECT >/dev/null 2>&1
+   fi
 fi
 
-#quic
-if [ "$disable_udp_quic" -eq 1 ]; then
-   iptables -I FORWARD -p udp --dport 443 -o utun -m comment --comment "OpenClash QUIC REJECT" -m set ! --match-set china_ip_route dst -j REJECT >/dev/null 2>&1
-fi
+
 
 #ipv6
 if [ "$ipv6_enable" -eq 1 ] && [ -n "$(ip6tables -t mangle -L 2>&1 | grep -o 'Chain')" ]; then
@@ -1870,6 +1863,7 @@ if [ "$ipv6_enable" -eq 1 ] && [ -n "$(ip6tables -t mangle -L 2>&1 | grep -o 'Ch
       ipset -! restore </etc/openclash/china_ip6_route.ipset 2>/dev/null
    fi
    
+   #local
    ipset create localnetwork6 hash:net family inet6
    ipset add localnetwork6 ::/128
    ipset add localnetwork6 ::1/128
@@ -2022,7 +2016,7 @@ get_config()
    disable_masq_cache=$(uci -q get openclash.config.disable_masq_cache)
    log_level=$(uci -q get openclash.config.log_level)
    intranet_allowed=$(uci -q get openclash.config.intranet_allowed)
-   enable_udp_proxy=$(uci -q get openclash.config.enable_udp_proxy)
+   enable_udp_proxy=$(uci -q get openclash.config.enable_udp_proxy || echo 1)
    disable_udp_quic=$(uci -q get openclash.config.disable_udp_quic)
    operation_mode=$(uci -q get openclash.config.operation_mode)
    lan_ac_mode=$(uci -q get openclash.config.lan_ac_mode)
@@ -2037,9 +2031,8 @@ get_config()
    dns_port=$(uci -q get openclash.config.dns_port)
    tolerance=$(uci -q get openclash.config.tolerance)
    custom_fallback_filter=$(uci -q get openclash.config.custom_fallback_filter)
+   stream_domains_prefetch=$(uci -q get openclash.config.stream_domains_prefetch || echo 0)
    append_wan_dns=$(uci -q get openclash.config.append_wan_dns || echo 1)
-   netflix_group_key=$(uci -q get openclash.config.netflix_group_key || echo "NETFLIX|奈飞|NF|网飞")
-   netflix_ip_complete=$(uci -q get openclash.config.netflix_ip_complete)
    store_fakeip=$(uci -q get openclash.config.store_fakeip || echo 1)
    _koolshare=$(cat /usr/lib/os-release 2>/dev/null |grep OPENWRT_RELEASE 2>/dev/null |grep -i koolshare 2>/dev/null)
    [ -z "$dns_port" ] && dns_port=7874 && uci -q set openclash.config.dns_port=7874
@@ -2062,7 +2055,7 @@ start()
    
    LOG_OUT "Step 2: Check The Components..."
    #检查文件是否存在
-   do_run_file "$RAW_CONFIG_FILE" "$BACKUP_FILE"
+   do_run_file "$RAW_CONFIG_FILE" "$BACKUP_FILE" "$en_mode"
    
    #快速启动判断
    check_run_quick
@@ -2074,11 +2067,10 @@ start()
       config_foreach yml_auth_get "authentication"
       yml_auth_custom "$CONFIG_FILE"
       yml_dns_custom "$enable_custom_dns" "$CONFIG_FILE" "$append_wan_dns" "$ipv6_dns"
-      /usr/share/openclash/yml_change.sh 2>/dev/null "$LOGTIME" "$en_mode" "$enable_custom_dns" "$da_password" "$cn_port" "$proxy_port" "$CONFIG_FILE" "$ipv6_enable" "$http_port" "$socks_port" "$lan_ip" "$log_level" "$proxy_mode" "$intranet_allowed" "$en_mode_tun" "$stack_type" "$dns_port" "$core_type" "$mixed_port" "$tproxy_port" "$ipv6_dns" "$store_fakeip"
+      /usr/share/openclash/yml_change.sh 2>/dev/null "$LOGTIME" "$en_mode" "$enable_custom_dns" "$da_password" "$cn_port" "$proxy_port" "$CONFIG_FILE" "$ipv6_enable" "$http_port" "$socks_port" "$lan_ip" "$log_level" "$proxy_mode" "$intranet_allowed" "$en_mode_tun" "$stack_type" "$dns_port" "$core_type" "$mixed_port" "$tproxy_port" "$ipv6_dns" "$store_fakeip" "$stream_domains_prefetch"
       /usr/share/openclash/yml_rules_change.sh 2>/dev/null "$LOGTIME" "$rule_source" "$enable_custom_clash_rules" "$CONFIG_FILE" "$enable_rule_proxy" "$CONFIG_NAME"
       yml_custom_rule_provider
       yml_game_custom
-      yml_netflix_complete "$CONFIG_FILE"
       yml_provider_path "$CONFIG_FILE" "proxy-providers" "proxy_provider"
       yml_provider_path "$CONFIG_FILE" "rule-providers" "rule_provider"
       yml_dns_check "$CONFIG_FILE"  "$FALLBACK_FILTER_FILE"

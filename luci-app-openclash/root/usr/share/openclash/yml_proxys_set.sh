@@ -67,6 +67,7 @@ yml_proxy_provider_set()
    config_get "type" "$section" "type" ""
    config_get "name" "$section" "name" ""
    config_get "path" "$section" "path" ""
+   config_get "provider_filter" "$section" "provider_filter" ""
    config_get "provider_url" "$section" "provider_url" ""
    config_get "provider_interval" "$section" "provider_interval" ""
    config_get "health_check" "$section" "health_check" ""
@@ -121,7 +122,12 @@ cat >> "$PROXY_PROVIDER_FILE" <<-EOF
     type: $type
     path: "$path"
 EOF
-   if [ ! -z "$provider_url" ]; then
+   if [ -n "$provider_filter" ]; then
+cat >> "$PROXY_PROVIDER_FILE" <<-EOF
+    filter: "$provider_filter"
+EOF
+   fi
+   if [ -n "$provider_url" ]; then
 cat >> "$PROXY_PROVIDER_FILE" <<-EOF
     url: "$provider_url"
     interval: $provider_interval
@@ -166,6 +172,16 @@ cat >> "$SERVER_FILE" <<-EOF
 EOF
 }
 
+set_ws_headers()
+{
+   if [ -z "$1" ]; then
+      return
+   fi
+cat >> "$SERVER_FILE" <<-EOF
+        $1
+EOF
+}
+
 #写入服务器节点到配置文件
 yml_servers_set()
 {
@@ -186,6 +202,7 @@ yml_servers_set()
    config_get "obfs_ssr" "$section" "obfs_ssr" ""
    config_get "obfs_param" "$section" "obfs_param" ""
    config_get "obfs_vmess" "$section" "obfs_vmess" ""
+   config_get "obfs_trojan" "$section" "obfs_trojan" ""
    config_get "protocol" "$section" "protocol" ""
    config_get "protocol_param" "$section" "protocol_param" ""
    config_get "host" "$section" "host" ""
@@ -212,6 +229,10 @@ yml_servers_set()
    config_get "ws_opts_headers" "$section" "ws_opts_headers" ""
    config_get "max_early_data" "$section" "max_early_data" ""
    config_get "early_data_header_name" "$section" "early_data_header_name" ""
+   config_get "trojan_ws_path" "$section" "trojan_ws_path" ""
+   config_get "trojan_ws_headers" "$section" "trojan_ws_headers" ""
+   config_get "interface_name" "$section" "interface_name" ""
+   config_get "routing_mark" "$section" "routing_mark" ""
 
    if [ "$enabled" = "0" ]; then
       return
@@ -438,11 +459,28 @@ EOF
             if [ -n "$ws_opts_path" ] || [ -n "$ws_opts_headers" ] || [ -n "$max_early_data" ] || [ -n "$early_data_header_name" ]; then
 cat >> "$SERVER_FILE" <<-EOF
     ws-opts:
+EOF
+               if [ -n "$ws_opts_path" ]; then
+cat >> "$SERVER_FILE" <<-EOF
       path: "$ws_opts_path"
-      headers: "$ws_opts_headers"
+EOF
+               fi
+               if [ -n "$ws_opts_headers" ]; then
+cat >> "$SERVER_FILE" <<-EOF
+      headers:
+EOF
+                  config_list_foreach "$section" "ws_opts_headers" set_ws_headers
+               fi
+               if [ -n "$max_early_data" ]; then
+cat >> "$SERVER_FILE" <<-EOF
       max-early-data: $max_early_data
+EOF
+               fi
+               if [ -n "$early_data_header_name" ]; then
+cat >> "$SERVER_FILE" <<-EOF
       early-data-header-name: "$early_data_header_name"
 EOF
+               fi
             fi
          fi
          if [ "$obfs_vmess" = "network: http" ]; then
@@ -588,9 +626,29 @@ EOF
    fi
    if [ ! -z "$grpc_service_name" ]; then
 cat >> "$SERVER_FILE" <<-EOF
+    network: grpc
     grpc-opts:
       grpc-service-name: "$grpc_service_name"
 EOF
+   fi
+   if [ "$obfs_trojan" = "ws" ]; then
+      if [ -n "$trojan_ws_path" ] || [ -n "$trojan_ws_headers" ]; then
+cat >> "$SERVER_FILE" <<-EOF
+    network: ws
+    ws-opts:
+EOF
+      fi
+      if [ -n "$trojan_ws_path" ]; then
+cat >> "$SERVER_FILE" <<-EOF
+      path: "$trojan_ws_path"
+EOF
+      fi
+      if [ -n "$trojan_ws_headers" ]; then
+cat >> "$SERVER_FILE" <<-EOF
+      headers:
+EOF
+         config_list_foreach "$section" "trojan_ws_headers" set_ws_headers
+      fi
    fi
    fi
 
@@ -611,7 +669,20 @@ cat >> "$SERVER_FILE" <<-EOF
 EOF
    fi
    fi
+   
+#interface-name
+   if [ -n "$interface_name" ]; then
+cat >> "$SERVER_FILE" <<-EOF
+    interface-name: $interface_name
+EOF
+   fi
 
+#routing_mark
+   if [ -n "$routing_mark" ]; then
+cat >> "$SERVER_FILE" <<-EOF
+    routing-mark: $routing_mark
+EOF
+   fi
 }
 
 new_servers_group_set()
