@@ -7,7 +7,7 @@
 sudo apt-get -y install build-essential asciidoc binutils bzip2 curl gawk gettext git libncurses5-dev libz-dev patch python3.5 python2.7 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf
 `
 
-3. `git clone -b main --single-branch https://github.com/Lienol/openwrt openwrt` 命令下载好源代码，然后 `cd openwrt` 进入目录
+3. `git clone -b 21.02 --single-branch https://github.com/Lienol/openwrt openwrt` 命令下载好源代码，然后 `cd openwrt` 进入目录
 
 4. ```bash
    ./scripts/feeds clean
@@ -54,8 +54,8 @@ the [Build System Setup](https://openwrt.org/docs/guide-developer/build-system/i
 documentation.
 
 ```
-binutils bzip2 diff find flex gawk gcc-6+ getopt grep install libc-dev libz-dev
-make4.1+ perl python3.6+ rsync subversion unzip which
+gcc binutils bzip2 flex python3 perl make find grep diff unzip gawk getopt
+subversion libz-dev libc-dev rsync which
 ```
 
 ### Quickstart
@@ -88,9 +88,6 @@ packages to OpenWrt, please find the fitting repository below.
 
 * [OpenWrt Routing](https://github.com/openwrt/routing): Packages specifically
   focused on (mesh) routing.
-
-* [OpenWrt Video](https://github.com/openwrt/video): Packages specifically
-  focused on display servers and clients (Xorg and Wayland).
 
 ## Support Information
 

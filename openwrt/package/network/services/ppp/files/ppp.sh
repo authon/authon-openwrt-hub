@@ -231,16 +231,16 @@ proto_pppoe_setup() {
 	json_get_var padi_attempts padi_attempts
 	json_get_var padi_timeout padi_timeout
 
-	#By 蝈蝈：并发拨号同步的前期准备
+#By 蝈蝈：并发拨号同步的前期准备
 	syncppp_option=""
 	[ "$(uci get syncdial.config.enabled)" == "1" ] && {
 		ppp_if_cnt=$(cat /etc/config/network | grep -c "proto 'pppoe'")
 		syncppp_option="syncppp $ppp_if_cnt"
 		shellsync $ppp_if_cnt 10
 	}
-	ppp_generic_setup "$config" \
+ 	ppp_generic_setup "$config" \
 		$syncppp_option \
-		plugin pppoe.so \
+		plugin rp-pppoe.so \
 		${ac:+rp_pppoe_ac "$ac"} \
 		${service:+rp_pppoe_service "$service"} \
 		${host_uniq:+host-uniq "$host_uniq"} \
@@ -337,7 +337,7 @@ proto_pptp_teardown() {
 
 [ -n "$INCLUDE_ONLY" ] || {
 	add_protocol ppp
-	[ -f /usr/lib/pppd/*/pppoe.so ] && add_protocol pppoe
+	[ -f /usr/lib/pppd/*/rp-pppoe.so ] && add_protocol pppoe
 	[ -f /usr/lib/pppd/*/pppoatm.so ] && add_protocol pppoa
 	[ -f /usr/lib/pppd/*/pptp.so ] && add_protocol pptp
 }

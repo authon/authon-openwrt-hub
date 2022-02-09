@@ -1,4 +1,5 @@
 #!/bin/sh
+. /lib/netifd/mac80211.sh
 
 append DRIVERS "mac80211"
 
@@ -10,7 +11,7 @@ lookup_phy() {
 	local devpath
 	config_get devpath "$device" path
 	[ -n "$devpath" ] && {
-		phy="$(iwinfo nl80211 phyname "path=$devpath")"
+		phy="$(mac80211_path_to_phy "$devpath")"
 		[ -n "$phy" ] && return
 	}
 
@@ -160,7 +161,7 @@ detect_mac80211() {
 
 		get_band_defaults "$dev"
 
-		path="$(iwinfo nl80211 path "$dev")"
+		path="$(mac80211_phy_to_path "$dev")"
 		if [ -n "$path" ]; then
 			dev_id="set wireless.radio${devidx}.path='$path'"
 		else
@@ -168,7 +169,7 @@ detect_mac80211() {
 		fi
 		
 		ssid="OpenWrt"
-		[ "$mode_band" = "5g" ] && ssid="${ssid}_5G"
+		[ "$mode_band" = "a" ] && ssid="${ssid}_5G"
 
 		uci -q batch <<-EOF
 			set wireless.radio${devidx}=wifi-device

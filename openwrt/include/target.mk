@@ -25,9 +25,9 @@ DEFAULT_PACKAGES:=\
 	uci \
 	uclient-fetch \
 	urandom-seed \
-	luci luci-compat wget-ssl curl ca-certificates htop \
+	luci luci-compat wget-ssl curl \
 	default-settings luci-app-upnp luci-app-wol luci-app-vlmcsd luci-app-ramfree \
-	luci-app-ddns ddns-scripts-cloudflare ddns-scripts_aliyun ddns-scripts_dnspod \
+	luci-app-ddns  ddns-scripts-cloudflare ddns-scripts_aliyun ddns-scripts_dnspod \
 	luci-app-timecontrol luci-app-control-timewol luci-app-control-webrestriction luci-app-control-weburl \
 	urngd
 
@@ -35,11 +35,6 @@ ifneq ($(CONFIG_SELINUX),)
 DEFAULT_PACKAGES+=busybox-selinux procd-selinux
 else
 DEFAULT_PACKAGES+=busybox procd
-endif
-
-# include seccomp ld-preload hooks if kernel supports it
-ifneq ($(CONFIG_SECCOMP),)
-DEFAULT_PACKAGES+=procd-seccomp
 endif
 
 # For the basic set
@@ -232,7 +227,6 @@ ifeq ($(DUMP),1)
   endif
   ifeq ($(ARCH),powerpc64)
     CPU_TYPE ?= powerpc64
-    CPU_CFLAGS_e5500:=-mcpu=e5500
     CPU_CFLAGS_powerpc64:=-mcpu=powerpc64
   endif
   ifeq ($(ARCH),sparc)

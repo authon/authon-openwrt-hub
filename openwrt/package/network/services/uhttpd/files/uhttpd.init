@@ -200,8 +200,7 @@ start_instance()
 		}
 	}
 
-	config_get json_script "$cfg" json_script
-	for file in $json_script; do
+	for file in /etc/uhttpd/*.json; do
 		[ -s "$file" ] && procd_append_param command -H "$file"
 	done
 
