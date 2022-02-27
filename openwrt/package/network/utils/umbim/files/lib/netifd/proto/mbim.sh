@@ -155,7 +155,7 @@ proto_mbim_setup() {
 		sleep 15
 	}
 
-	return $ret
+	return $rt
 }
 
 proto_mbim_teardown() {

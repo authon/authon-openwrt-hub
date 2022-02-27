@@ -11,8 +11,8 @@ PKG_NAME:=Build dependency
 
 # Required for the toolchain
 $(eval $(call TestHostCommand,working-make, \
-	Please install GNU make v3.82 or later. (This version has bugs), \
-	$(MAKE) -v | grep -E 'Make (3\.8[2-9]|3\.9[0-9]|[4-9]\.)'))
+	Please install GNU make v3.81 or later. (This version has bugs), \
+	$(MAKE) -v | grep -E 'Make (3\.8[1-9]|3\.9[0-9]|[4-9]\.)'))
 
 $(eval $(call TestHostCommand,case-sensitive-fs, \
 	OpenWrt can only be built on a case-sensitive filesystem, \
@@ -93,11 +93,6 @@ $(eval $(call SetupHostCommand,find,Please install GNU 'find', \
 $(eval $(call SetupHostCommand,bash,Please install GNU 'bash', \
 	bash --version 2>&1 | grep GNU))
 
-$(eval $(call SetupHostCommand,xargs, \
-	Please install 'xargs' that supports '-r/--no-run-if-empty', \
-	gxargs -r --version, \
-	xargs -r --version))
-
 $(eval $(call SetupHostCommand,patch,Please install GNU 'patch', \
 	gpatch --version 2>&1 | grep 'Free Software Foundation', \
 	patch --version 2>&1 | grep 'Free Software Foundation'))
@@ -110,9 +105,9 @@ $(eval $(call SetupHostCommand,cp,Please install GNU fileutils, \
 	gcp --help 2>&1 | grep 'Copy SOURCE', \
 	cp --help 2>&1 | grep 'Copy SOURCE'))
 
-$(eval $(call SetupHostCommand,seq,Please install seq, \
+$(eval $(call SetupHostCommand,seq,, \
 	gseq --version, \
-	seq --version 2>&1 | grep seq))
+	seq --version))
 
 $(eval $(call SetupHostCommand,awk,Please install GNU 'awk', \
 	gawk --version 2>&1 | grep GNU, \
@@ -122,15 +117,11 @@ $(eval $(call SetupHostCommand,grep,Please install GNU 'grep', \
 	ggrep --version 2>&1 | grep GNU, \
 	grep --version 2>&1 | grep GNU))
 
-$(eval $(call SetupHostCommand,egrep,Please install GNU 'grep', \
-	gegrep --version 2>&1 | grep GNU, \
-	egrep --version 2>&1 | grep GNU))
-
 $(eval $(call SetupHostCommand,getopt, \
 	Please install an extended getopt version that supports --long, \
 	gnugetopt -o t --long test -- --test | grep '^ *--test *--', \
-	getopt -o t --long test -- --test | grep '^ *--test *--', \
-	/usr/local/opt/gnu-getopt/bin/getopt -o t --long test -- --test | grep '^ *--test *--'))
+	/usr/local/bin/getopt -o t --long test -- --test | grep '^ *--test *--', \
+	getopt -o t --long test -- --test | grep '^ *--test *--'))
 
 $(eval $(call SetupHostCommand,stat,Cannot find a file stat utility, \
 	gnustat -c%s $(TOPDIR)/Makefile, \
@@ -152,23 +143,21 @@ $(eval $(call SetupHostCommand,perl,Please install Perl 5.x, \
 
 $(eval $(call CleanupPython2))
 
-$(eval $(call SetupHostCommand,python,Please install Python >= 3.5, \
+$(eval $(call SetupHostCommand,python,Please install Python >= 3.6, \
 	python3.10 -V 2>&1 | grep 'Python 3', \
 	python3.9 -V 2>&1 | grep 'Python 3', \
 	python3.8 -V 2>&1 | grep 'Python 3', \
 	python3.7 -V 2>&1 | grep 'Python 3', \
 	python3.6 -V 2>&1 | grep 'Python 3', \
-	python3.5 -V 2>&1 | grep 'Python 3', \
-	python3 -V 2>&1 | grep -E 'Python 3\.([5-9]|10)\.?'))
+	python3 -V 2>&1 | grep -E 'Python 3\.([6-9]|10)\.?'))
 
-$(eval $(call SetupHostCommand,python3,Please install Python >= 3.5, \
+$(eval $(call SetupHostCommand,python3,Please install Python >= 3.6, \
 	python3.10 -V 2>&1 | grep 'Python 3', \
 	python3.9 -V 2>&1 | grep 'Python 3', \
 	python3.8 -V 2>&1 | grep 'Python 3', \
 	python3.7 -V 2>&1 | grep 'Python 3', \
 	python3.6 -V 2>&1 | grep 'Python 3', \
-	python3.5 -V 2>&1 | grep 'Python 3', \
-	python3 -V 2>&1 | grep -E 'Python 3\.([5-9]|10)\.?'))
+	python3 -V 2>&1 | grep -E 'Python 3\.([6-9]|10)\.?'))
 
 $(eval $(call TestHostCommand,python3-distutils, \
 	Please install the Python3 distutils module, \
@@ -180,14 +169,6 @@ $(eval $(call SetupHostCommand,git,Please install Git (git-core) >= 1.7.12.2, \
 $(eval $(call SetupHostCommand,file,Please install the 'file' package, \
 	file --version 2>&1 | grep file))
 
-$(eval $(call SetupHostCommand,rsync,Please install 'rsync', \
-	rsync --version </dev/null))
-
-$(eval $(call SetupHostCommand,which,Please install 'which', \
-	/usr/bin/which which, \
-	/bin/which which, \
-	which which))
-
 $(STAGING_DIR_HOST)/bin/mkhash: $(SCRIPT_DIR)/mkhash.c
 	mkdir -p $(dir $@)
 	$(CC) -O2 -I$(TOPDIR)/tools/include -o $@ $<
@@ -196,5 +177,4 @@ prereq: $(STAGING_DIR_HOST)/bin/mkhash
 
 # Install ldconfig stub
 $(eval $(call TestHostCommand,ldconfig-stub,Failed to install stub, \
-	touch $(STAGING_DIR_HOST)/bin/ldconfig && \
-	chmod +x $(STAGING_DIR_HOST)/bin/ldconfig))
+	$(LN) /bin/true $(STAGING_DIR_HOST)/bin/ldconfig))

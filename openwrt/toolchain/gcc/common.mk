@@ -36,12 +36,12 @@ ifeq ($(PKG_VERSION),8.4.0)
   PKG_HASH:=e30a6e52d10e1f27ed55104ad233c30bd1e99cfb5ff98ab022dc941edd1b2dd4
 endif
 
-ifeq ($(PKG_VERSION),9.3.0)
-  PKG_HASH:=71e197867611f6054aa1119b13a0c0abac12834765fe2d81f35ac57f84f742d1
+ifeq ($(PKG_VERSION),10.3.0)
+  PKG_HASH:=64f404c1a650f27fc33da242e1f2df54952e3963a49e06e73f6940f3223ac344
 endif
 
-ifeq ($(PKG_VERSION),10.2.0)
-  PKG_HASH:=b8dd4368bb9c7f0b98188317ee0254dd8cc99d1e3a18d0ff146c855fe16c1d8c
+ifeq ($(PKG_VERSION),11.2.0)
+  PKG_HASH:=d08edc536b54c372a1010ff6619dd274c0f1603aa49212ba20f7aa2cda36fa8b
 endif
 
 PATCH_DIR=../patches/$(GCC_VERSION)
@@ -104,7 +104,6 @@ GCC_CONFIGURE:= \
 		--disable-multilib \
 		--disable-libmpx \
 		--disable-nls \
-		--disable-libssp \
 		$(GRAPHITE_CONFIGURE) \
 		--with-host-libstdcxx=-lstdc++ \
 		$(SOFT_FLOAT_CONFIG_OPTION) \
@@ -132,6 +131,14 @@ endif
 ifneq ($(CONFIG_GCC_DEFAULT_SSP),)
   GCC_CONFIGURE+= \
 		--enable-default-ssp
+endif
+
+ifneq ($(CONFIG_GCC_LIBSSP),)
+  GCC_CONFIGURE+= \
+		--enable-libssp
+else
+  GCC_CONFIGURE+= \
+		--disable-libssp
 endif
 
 ifneq ($(CONFIG_EXTRA_TARGET_ARCH),)
