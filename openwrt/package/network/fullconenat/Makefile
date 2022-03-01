@@ -9,13 +9,13 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=fullconenat
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
-PKG_SOURCE_DATE:=2020-05-09
+PKG_SOURCE_DATE:=2021-12-09
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/llccd/netfilter-full-cone-nat.git
-PKG_MIRROR_HASH:=bec75e2c0dc1103928861f8ea8f3f9ada63731103099a884222e15eab0a2fff8
-PKG_SOURCE_VERSION:=cc30ca6031ef5dca5bdb10cfd5ffc0c79425af9e
+PKG_SOURCE_VERSION:=869f146044632610de2e55d64801983bd5f30e62
+PKG_MIRROR_HASH:=06ad98da50f414586b0921d2b4c863e3a32c37bfa40b479cef5f53823ebf40f1
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=LICENSE
@@ -27,7 +27,7 @@ define Package/iptables-mod-fullconenat
   SECTION:=net
   CATEGORY:=Network
   TITLE:=FULLCONENAT iptables extension
-  DEPENDS:=iptables +kmod-ipt-fullconenat
+  DEPENDS:=+iptables +kmod-ipt-fullconenat
   MAINTAINER:=Chion Tang <tech@chionlab.moe>
 endef
 
@@ -55,7 +55,9 @@ define KernelPackage/ipt-fullconenat
   TITLE:=FULLCONENAT netfilter module
   DEPENDS:=+kmod-nf-ipt +kmod-nf-nat
   MAINTAINER:=Chion Tang <tech@chionlab.moe>
-  KCONFIG:=CONFIG_NF_CONNTRACK_EVENTS=y CONFIG_NF_CONNTRACK_CHAIN_EVENTS=y
+  KCONFIG:=  \
+	CONFIG_NF_CONNTRACK_EVENTS=y \
+	CONFIG_NF_CONNTRACK_CHAIN_EVENTS=y
   FILES:=$(PKG_BUILD_DIR)/xt_FULLCONENAT.ko
 endef
 
@@ -67,10 +69,12 @@ define Build/Prepare
 endef
 
 define Build/Compile
-	$(KERNEL_MAKE) M="$(PKG_BUILD_DIR)" \
-	EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
-	$(PKG_EXTRA_KCONFIG) \
-	modules
+	+$(MAKE) $(PKG_JOBS) -C "$(LINUX_DIR)" \
+        CROSS_COMPILE="$(TARGET_CROSS)" \
+        ARCH="$(LINUX_KARCH)" \
+        M="$(PKG_BUILD_DIR)" \
+        EXTRA_CFLAGS="$(BUILDFLAGS)" \
+        modules
 	$(call Build/Compile/Default)
 endef
 
