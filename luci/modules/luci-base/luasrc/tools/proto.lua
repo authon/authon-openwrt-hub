@@ -44,6 +44,11 @@ function opt_macaddr(s, ifc, ...)
 						o.map:set(e[".name"], "macaddr", value)
 					end
 				end)
+				uci:foreach("network", "device", function(e)
+					if e.name == uci_section.ifname then
+						o.map:set(e[".name"], "macaddr", value)
+					end
+				end)
 			end
 			v.write(self, section, value)
 		else
@@ -56,7 +61,12 @@ function opt_macaddr(s, ifc, ...)
 		if uci_section and uci_section.ifname then
 			uci:foreach("network", "interface", function(e)
 				if s.section ~= e[".name"] and e.ifname == uci_section.ifname then
-					o.map:del(e[".name"], "macaddr", nil)
+					o.map:del(e[".name"], "macaddr")
+				end
+			end)
+			uci:foreach("network", "device", function(e)
+				if e.name == uci_section.ifname then
+					o.map:del(e[".name"], "macaddr")
 				end
 			end)
 		end
