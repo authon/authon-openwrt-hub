@@ -109,7 +109,7 @@ define Package/dnsmasq-full/config
 		default y
 	config PACKAGE_dnsmasq_full_ipset
 		bool "Build with IPset support."
-		default n
+		default y
 	config PACKAGE_dnsmasq_full_conntrack
 		bool "Build with Conntrack support."
 		default y
