@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=syslog-ng
-PKG_VERSION:=3.38.1
+PKG_VERSION:=4.3.1
 PKG_RELEASE:=$(AUTORELEASE)
 
 PKG_MAINTAINER:=Josef Schlehofer <josef.schlehofer@nic.cz>
@@ -11,23 +11,29 @@ PKG_CPE_ID:=cpe:/a:balabit:syslog-ng
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/syslog-ng/syslog-ng/releases/download/$(PKG_NAME)-$(PKG_VERSION)/
-PKG_HASH:=5491f686d0b829b69b2e0fc0d66a62f51991aafaee005475bfa38fab399441f7
+PKG_HASH:=999dbab62982c3cffba02c0be22c596ee1ce81d6954689dc9b3a6afeb513cce3
 
 PKG_BUILD_PARALLEL:=1
 PKG_INSTALL:=1
+
+PKG_BUILD_DEPENDS:= \
+	HOST_OS_MACOS:fakeuname/host \
 
 PKG_CONFIG_DEPENDS:= \
 	CONFIG_IPV6 \
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/nls.mk
+ifeq ($(CONFIG_HOST_OS_MACOS),y)
+    include ../../utils/fakeuname/fakeuname.mk
+endif
 
 define Package/syslog-ng
   SECTION:=admin
   CATEGORY:=Administration
   TITLE:=A powerful syslog daemon
   URL:=https://www.syslog-ng.com/products/open-source-log-management/
-  DEPENDS:=+libpcre +glib2 +libopenssl +libpthread +librt +zlib +libdbi +libjson-c +libcurl +libuuid +SYSLOGNG_LOGROTATE:logrotate
+  DEPENDS:=+libpcre2 +glib2 +libopenssl +libpthread +librt +zlib +libdbi +libjson-c +libcurl +libuuid +SYSLOGNG_LOGROTATE:logrotate
 endef
 
 define Package/syslog-ng/description
@@ -83,6 +89,7 @@ CONFIGURE_ARGS +=  \
 	--disable-sql \
 	--disable-linux-caps \
 	--with-jsonc=system \
+	--enable-cpp=no \
 	--enable-json=yes \
 	--enable-http=yes \
 	--disable-smtp \
@@ -97,6 +104,7 @@ CONFIGURE_ARGS +=  \
 	--with-mongoc=no
 
 CONFIGURE_VARS += \
+	$(if $(CONFIG_HOST_OS_MACOS),PATH=$(FAKEUNAME_PATH):$(PATH)) \
 	LIBDBI_CFLAGS="-I$(STAGING_DIR)/usr/include"
 
 define Package/syslog-ng/install
