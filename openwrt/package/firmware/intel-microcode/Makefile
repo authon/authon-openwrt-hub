@@ -15,6 +15,7 @@ PKG_SOURCE:=intel-microcode_3.$(PKG_VERSION).2.tar.xz
 PKG_SOURCE_URL:=http://ftp.debian.org/debian/pool/non-free/i/intel-microcode/
 PKG_HASH:=fbf82688ffd0d87b352a35c57bd097ea014f0ad32c9c8f9629725c1b43d1c84d
 PKG_BUILD_DIR:=$(BUILD_DIR)/intel-microcode-3.$(PKG_VERSION).2
+PKG_CPE_ID:=cpe:/a:intel:microcode
 
 PKG_BUILD_DEPENDS:=iucode-tool/host
 
